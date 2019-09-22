@@ -1,3 +1,5 @@
+
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -15,45 +17,58 @@ struct mipPacket{
     unsigned char A : 1;
     unsigned char TTL : 4;
     unsigned int PayloadLength : 9;
-    char destinationMipAddress;
+    char DestinationMipAddress;
     char SourceMipAddress;
 };
 
+const size_t HEADER_SIZE = sizeof(struct mipPacket);
+
 
 void printMipPacket(const char *buffer) {
-    const struct mipPacket *headers;
-    headers = (struct mipPacket*)buffer;
-    const char *payload = buffer + 4;
+    const struct mipPacket *headers = (struct mipPacket*)buffer;
+    const char *payload = buffer + HEADER_SIZE;
 
-    printf("--> T:%d-R:%d-A:%d, TTL:%d, PayloadLength:%d x 4bytes, Dest:%c Src:%c\n", headers->T, headers->R, headers->A, headers->TTL, headers->PayloadLength, headers->destinationMipAddress, headers->SourceMipAddress);
-    printf("    Payload string: [");
+    printf("--> T:%d-R:%d-A:%d, TTL:%d, PayloadLength:%d x 4bytes, Dest:%c Src:%c\n", headers->T, headers->R, headers->A, headers->TTL, headers->PayloadLength, headers->DestinationMipAddress, headers->SourceMipAddress);
+
+    printf("    Payload string: \"");
     for(int i = 0; i < headers->PayloadLength * 4; i++){
-        printf("%c", payload[i]);
+        if(payload[i] == 0) {
+            printf("\\0");
+        }
+        else
+        {
+            printf("%c", payload[i]);
+        }
     }
-    printf("]\n");
+    printf("\"\n");
+
     printf("    Payload hex: 0x");
     for(int i = 0; i < headers->PayloadLength * 4; i++){
-        printf("%x", payload[i]);
+        printf("%02x", payload[i]);
     }
     printf("\n");
-
 }
+
 
 int main(int args, char *argv[]) {
     fprintf(stdout, "*** daemon starting!\n");
 
-    struct mipPacket myPacket;
-    myPacket.T = 0;
-    myPacket.R = 0;
-    myPacket.A = 1;
-    myPacket.TTL = 0xF;
-    myPacket.PayloadLength = 0x003;
-    myPacket.destinationMipAddress = 'B';
-    myPacket.SourceMipAddress = 'A';
+    char *payload = "nothing to see, move along\0";
+    size_t payloadLength = strlen(payload);
 
-    char *buffer = malloc(12);
-    memcpy(buffer, &myPacket, 4);
-    memcpy(buffer + 4, "hello world\0", 12);
+    size_t bufferLength = HEADER_SIZE + payloadLength;
+    char *buffer = malloc(bufferLength);
+    memset(buffer, 0, ceil((double)bufferLength/4)*4);
+    struct mipPacket *headers = (struct mipPacket*)buffer;
+    
+    headers->T = 0;
+    headers->R = 0;
+    headers->A = 1;
+    headers->TTL = 0xF;
+    headers->PayloadLength = ceil((double)payloadLength/4);
+    headers->DestinationMipAddress = 'B';
+    headers->SourceMipAddress = 'A';
+    memcpy(buffer + 4, payload, payloadLength);
 
     printMipPacket(buffer);
 
